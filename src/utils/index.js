@@ -3,6 +3,7 @@
  * @date 2020--11 11:28
  * @desc index.js
  */
+
 export const fileToDataURL = file => {
   if(!file) return Promise.reject('file is required');
   return new Promise((resolve, reject) => {
@@ -78,4 +79,49 @@ export const removeCookie = (name) => {
   if (value) {
     document.cookie = name + '=' + value + ';expires=' + exp.toUTCString();
   }
+};
+
+/**
+ * 是否有权限
+ * @param route
+ * @param permission
+ * @returns {boolean}
+ */
+const hasPermission = function(route, permission) {
+  const isArray = Array.isArray(permission);
+  const isString = typeof permission === 'string';
+
+  if(isArray && permission.some(per => route.meta.permission.includes(per))) {
+    return true
+  }
+  return isString && route.meta.permission.includes(permission);
+};
+
+/**
+ * 过滤路由
+ * @param routes
+ * @param permission
+ * @returns {Array}
+ */
+export const filterRoutes = (routes, permission) => {
+  const dynamicRoutes = [];
+
+  routes.forEach(route => {
+    if(route.meta && route.meta.permission && route.meta.permission.length) {
+      if(hasPermission(route, permission)) {
+
+        if(route.children && route.children.length) {
+          route.children = filterRoutes(route.children, permission);
+        }
+        dynamicRoutes.push(route);
+      }
+    }
+
+    if(route.path === '*') {
+      dynamicRoutes.push(route);
+    }
+
+  });
+
+  return dynamicRoutes;
 };

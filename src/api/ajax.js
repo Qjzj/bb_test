@@ -5,6 +5,7 @@
  */
 import axios from 'axios';
 import {Message} from 'element-ui';
+import {getCookie, setCookie} from "../utils/index.js";
 
 export const BASE_URL = '/egg';
 
@@ -61,4 +62,17 @@ export default function ajax(url, data = {}, method="GET") {
   })
 
 }
+
+axios.interceptors.request.use(config => {
+  const token = getCookie('token')
+  if(token) {
+    // 刷新token 的过期时间
+    setCookie('token', token);
+    config.headers['X-Token'] = token;
+  }
+  return config;
+}, error => {
+    console.log('request', error);
+    return Promise.reject(error);
+});
 

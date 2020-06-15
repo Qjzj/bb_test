@@ -1,18 +1,25 @@
 import Vue from 'vue'
-import VueRouter, {RouteConfig} from 'vue-router'
-import {getCookie} from "@/utils/index.js";
+import VueRouter from 'vue-router'
+import {Message} from 'element-ui'
+import {filterRoutes, getCookie} from "@/utils/index.js";
 import {AUTH_MAP} from "@/config";
 import store from '@/store'
 import Home from '../views/Home.vue'
 import Layout from '../Layout/Dashboard.vue'
+import NotFound from '../views/NotFound/index.vue';
 const Login = () => import('../views/Login/index.vue');
 
 Vue.use(VueRouter);
 
-const dynamicRoutes: Array<RouteConfig> = [
+const allowList = ['/login', '/404'];
+
+export const asyncRoutes = [
   {
     path: '/news',
     component: Layout,
+    meta: {
+      permission: ['admin', 'super']
+    },
     children: [
       {
         path: 'detail/:id',
@@ -31,6 +38,9 @@ const dynamicRoutes: Array<RouteConfig> = [
   {
     path: '/template',
     component: Layout,
+    meta: {
+      permission: ['admin', 'super']
+    },
     children: [
       {
         path: ':id?',
@@ -39,9 +49,13 @@ const dynamicRoutes: Array<RouteConfig> = [
       }
     ]
   },
+  {
+    path: '*',
+    component: NotFound
+  }
 ];
 
-const routes: Array<RouteConfig> = [
+export const constantRoutes = [
   {
     path: '/',
     redirect: '/home'
@@ -68,47 +82,62 @@ const routes: Array<RouteConfig> = [
 ];
 
 const router = new VueRouter({
-  routes
+  routes: constantRoutes
 });
 
 router.beforeEach(async (to, from , next) => {
-  // 不需要权限的页面
-  if(!to.meta || !to.meta.permission || !to.meta.permission.length) {
-    next();
-    return
-  }
-  // 进入需要权限的页面
 
   const token = getCookie('x-token');
-  console.log(to, from, next);
   if(token) {
+    console.log('存在token', token);
+
     // 已经登录
+    if(to.path === '/login') {
+      next('/');
+      return
+    }
     // 查看是否已经有权限
     const type = store.state.userType;
 
-    if(type ==='') {
-      // 没有设置权限
-      const {userType} = await store.dispatch('updateUser');
+    if(type === '') {
+      console.log('type 为 空')
+      try {
+        // 没有设置权限
+        const {userType} = await store.dispatch('updateUser');
+        if(!userType) throw new Error('没有获取到用户角色');
+        console.log('userType', userType);
+        const role = AUTH_MAP[userType];
+        console.log('role', role);
+        // 过滤路由
+        const dynamicRouter = await store.dispatch('generateRoutes', role);
 
-      const auth = AUTH_MAP[userType];
-      // 过滤路由
-      // const dynamicRouter =
+        console.log('过滤后的路由', dynamicRouter);
+        router.addRoutes(dynamicRouter);
 
 
-      if(to.meta.permission.includes(auth)) {
-        next();
-      }else {
-        next('/404')
+        // @ts-ignore
+        next({...to, replace: true})
+      }catch (e) {
+        Message.error(e || 'Router Error');
+        next('/login?redirect=' + encodeURI(to.path));
       }
 
-
     }else {
-
+      console.log('存在Type', type);
+      next();
     }
 
 
   }else {
-    next('/login')
+    console.log('不存在token');
+    if(allowList.includes(to.path)) {
+      console.log('进入白名单');
+      next();
+    }else {
+      console.log('不是白名单, 滚去登陆');
+      next('/login?redirect=' + encodeURI(to.path));
+    }
+
   }
 });
 

@@ -45,6 +45,10 @@
         活动描述
         <QEditor @editorChange="editorChange" />
       </div>
+      <p>原始价格： <el-input v-model="original_price"><span slot="append">元</span></el-input></p>
+      <p>团长折扣： <el-input v-model="colonel_discount"><span slot="append">折</span></el-input></p>
+
+      <p><el-button @click="submit">提交</el-button></p>
     </div>
   </div>
 </template>
@@ -73,6 +77,8 @@
         title: '',
         introduce: '',
         address: '',
+        original_price: '0',
+        colonel_discount: '0'
       }
     },
     computed: {
@@ -131,6 +137,9 @@
         timer = setTimeout(() => {
           this.introduce = html;
         }, 200)
+      },
+      submit() {
+        console.log('提交');
       }
     }
   }

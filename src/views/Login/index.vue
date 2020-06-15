@@ -82,6 +82,8 @@
 
 <script>
   import {validatePwd, validatePhone, setCookie} from "../../utils";
+  import {AUTH_MAP} from "@/config";
+  import router from '@/router'
   import {login} from "../../api/user";
   import {mapActions} from 'vuex'
 
@@ -178,11 +180,11 @@
       }
     },
     methods: {
-      ...mapActions(['updateUser']),
+      ...mapActions(['updateUser', 'generateRoutes']),
       login() {
         this.$refs.loginForm.validate(async valid => {
           if(valid) {
-            // TODO 登录验证
+
             const {user, password} = this.loginForm;
             try {
               const result = await login(user, password);
@@ -195,8 +197,22 @@
                 this.loginRules.password.pop();
               }else {
                 setCookie('x-token', result['data']['_id']);
-                await this.updateUser();
-                this.$router.replace('/');
+                const {userType} = await this.updateUser();
+
+                const role = AUTH_MAP[userType];
+
+                // 添加路由
+                const dynamicRouter = await this.$store.dispatch('generateRoutes', role);
+
+                router.addRoutes(dynamicRouter);
+
+
+                const {redirect} = this.$route.query;
+                if(redirect) {
+                  this.$router.replace(redirect);
+                }else {
+                  this.$router.replace('/');
+                }
               }
             }catch (e) {
               console.log(e);
